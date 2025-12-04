@@ -199,21 +199,14 @@ async def get_top10_unidentified(
             }
         )
 
-    where_clause, params = _build_conditions(sites, date_debut, date_fin)
-
-    sql = f"""
-        SELECT
-            m.Mac,
-            COUNT(*) as nombre_de_charges
-        FROM kpi_mac_id m
-        LEFT JOIN kpi_sessions s ON m.ID = s.ID
-        WHERE {where_clause}
-        GROUP BY m.Mac
+    sql = """
+        SELECT Mac, nombre_de_charges
+        FROM kpi_mac_id
         ORDER BY nombre_de_charges DESC
         LIMIT 10
     """
 
-    df = query_df(sql, params)
+    df = query_df(sql)
 
     if df.empty:
         return templates.TemplateResponse(
