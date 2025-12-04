@@ -1,0 +1,478 @@
+<div style="display:flex; flex-direction:column; gap:1.25rem;">
+    {% if error_message %}
+    <div style="padding:0.75rem 1rem; border:1px solid #ef4444; background:#fef2f2; color:#991b1b; border-radius:var(--radius-sm); margin-bottom:1rem;">
+        ⚠️ Impossible de charger les données de comparaison. Détail : {{ error_message }}
+    </div>
+    {% endif %}
+
+    <style>
+        .table-wrapper {
+            overflow: auto;
+            max-height: 520px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+        }
+
+        .sortable-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .sortable-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface);
+            cursor: pointer;
+            text-align: left;
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+
+        .sortable-table tbody td {
+            padding: 0.55rem;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.9rem;
+            color: var(--color-text);
+        }
+
+        .sortable-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .sortable-table th.sorted-asc::after { content: ' ▲'; font-size: 0.75rem; color: var(--color-text-muted); }
+        .sortable-table th.sorted-desc::after { content: ' ▼'; font-size: 0.75rem; color: var(--color-text-muted); }
+
+        .sticky-first-col {
+            position: sticky;
+            left: 0;
+            background: var(--color-surface);
+            z-index: 1;
+        }
+
+        .chart-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+        }
+
+        .chart-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .chart-label {
+            width: 110px;
+            font-weight: 600;
+            color: var(--color-text);
+            white-space: nowrap;
+        }
+
+        .chart-bar {
+            flex: 1;
+            display: flex;
+            height: 18px;
+            overflow: hidden;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+        }
+
+        .chart-bar .ok {
+            background: #38AC21;
+        }
+
+        .chart-bar .nok {
+            background: #ef4444;
+        }
+
+        .chart-values {
+            width: 120px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+        }
+    </style>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <div style="font-weight:700; color:var(--color-text);">Statistiques par site</div>
+            <div style="font-size:0.85rem; color:var(--color-text-muted);">OK = réussi · NOK = échec</div>
+        </div>
+        {% if site_rows %}
+        <div class="table-wrapper">
+            <table class="sortable-table" style="min-width:640px;">
+                <thead>
+                    <tr>
+                        {% set stats_cols = ["Site", "Total_Charges", "Charges_OK", "Charges_NOK", "% Réussite", "% Échec"] %}
+                        {% for col in stats_cols %}
+                        {% set is_numeric = col != 'Site' %}
+                        <th data-sortable="true" data-type="{{ 'number' if is_numeric else 'text' }}">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in site_rows %}
+                    <tr>
+                        <td style="font-weight:600;">{{ row['Site'] }}</td>
+                        <td data-sort-value="{{ row['Total_Charges'] }}">{{ row['Total_Charges'] }}</td>
+                        <td style="color:#15803d;" data-sort-value="{{ row['Charges_OK'] }}">{{ row['Charges_OK'] }}</td>
+                        <td style="color:#dc2626;" data-sort-value="{{ row['Charges_NOK'] }}">{{ row['Charges_NOK'] }}</td>
+                        <td style="color:#1d4ed8;" data-sort-value="{{ row['% Réussite'] }}">{{ row['% Réussite'] }}%</td>
+                        <td style="color:#b91c1c;" data-sort-value="{{ row['% Échec'] }}">{{ row['% Échec'] }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; flex-wrap:wrap;">
+            <div style="padding:0.75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-bg);">
+                <div style="font-weight:600; margin-bottom:0.5rem; color:var(--color-text);">Volumes OK / NOK</div>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    {% for row in count_bars %}
+                    {% set ok_ratio = (row.ok / max_total * 100) if max_total else 0 %}
+                    {% set nok_ratio = (row.nok / max_total * 100) if max_total else 0 %}
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <div style="width:110px; font-weight:600; color:var(--color-text);">{{ row.site }}</div>
+                        <div style="flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; overflow:hidden; display:flex; height:20px;">
+                            <div style="width:{{ ok_ratio }}%; background:#38AC21;"></div>
+                            <div style="width:{{ nok_ratio }}%; background:#ef4444;"></div>
+                        </div>
+                        <div style="width:120px; display:flex; justify-content:space-between; font-size:0.85rem; color:var(--color-text-muted);">
+                            <span>{{ row.ok }}</span>
+                            <span>{{ row.nok }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="padding:0.75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-bg);">
+                <div style="font-weight:600; margin-bottom:0.5rem; color:var(--color-text);">Répartition en pourcentage</div>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    {% for row in percent_bars %}
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <div style="width:110px; font-weight:600; color:var(--color-text);">{{ row.site }}</div>
+                        <div style="flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; overflow:hidden; display:flex; height:20px;">
+                            <div style="width:{{ row.ok_pct }}%; background:#38AC21;"></div>
+                            <div style="width:{{ row.nok_pct }}%; background:#ef4444;"></div>
+                        </div>
+                        <div style="width:120px; display:flex; justify-content:space-between; font-size:0.85rem; color:var(--color-text-muted);">
+                            <span>{{ row.ok_pct }}%</span>
+                            <span>{{ row.nok_pct }}%</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <div>Aucune donnée disponible pour ce périmètre.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:1rem;">
+        <div style="font-weight:700; color:var(--color-text);">Analyse temporelle</div>
+        {% if peak_rows %}
+        <div class="table-wrapper">
+            <table class="sortable-table" style="min-width:560px;">
+                <thead>
+                    <tr>
+                        <th data-sortable="true">Site</th>
+                        <th data-sortable="true" data-type="number">Heure de pic</th>
+                        <th data-sortable="true" data-type="number">Nb au pic</th>
+                        <th data-sortable="true" data-type="number">Heure médiane</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in peak_rows %}
+                    <tr>
+                        <td style="font-weight:600;">{{ row.site }}</td>
+                        <td data-sort-value="{{ row.peak_hour }}">{{ row.peak_hour }}</td>
+                        <td data-sort-value="{{ row.peak_nb }}">{{ row.peak_nb }}</td>
+                        <td data-sort-value="{{ row.median_hour }}">{{ row.median_hour }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">⏱️</div>
+            <div>Aucune heure de charge valide pour ce périmètre.</div>
+        </div>
+        {% endif %}
+
+        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="font-weight:600; color:var(--color-text);">Heatmap des charges par heure</div>
+            {% if heatmap_rows %}
+            <div class="table-wrapper" style="max-height:420px;">
+                <table class="sortable-table" style="border-collapse:collapse; min-width:780px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th class="sticky-first-col" data-sortable="true">Site</th>
+                            {% for hour in heatmap_hours %}
+                            <th data-sortable="true" data-type="number" style="text-align:center;">{{ "%02d:00" % hour }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in heatmap_rows %}
+                        <tr>
+                            <td class="sticky-first-col" style="font-weight:600;">{{ row.site }}</td>
+                              {% for value in row['values'] %}
+                            {% set ratio = (value / heatmap_max * 0.85) if heatmap_max else 0 %}
+                            {% set text_color = '#0f172a' if ratio < 0.55 else '#ffffff' %}
+                            <td data-sort-value="{{ value }}" style="padding:0.5rem; text-align:center; background:rgba(37,99,235,{{ '%.3f' % ratio }}); color:{{ text_color }}; font-weight:600;">{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🧊</div>
+                <div>Pas assez de données pour afficher la heatmap horaire.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:1rem;">
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; justify-content:space-between;">
+            <div style="font-weight:700; color:var(--color-text);">Zoom site et périodicité</div>
+            <form hx-get="/api/sessions/comparaison" hx-target="#tab-content" hx-swap="innerHTML" style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input type="hidden" name="sites" value="{{ filters.sites }}">
+                <input type="hidden" name="date_debut" value="{{ filters.date_debut }}">
+                <input type="hidden" name="date_fin" value="{{ filters.date_fin }}">
+                <input type="hidden" name="error_types" value="{{ filters.error_types }}">
+                <input type="hidden" name="moments" value="{{ filters.moments }}">
+                <select name="site_focus" onchange="this.form.requestSubmit()" class="select-input" style="min-width:220px;">
+                    {% for opt in site_options %}
+                    <option value="{{ opt }}" {% if opt == site_focus %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="month_focus" value="{{ month_focus }}">
+            </form>
+        </div>
+
+        {% if site_focus %}
+        <div style="display:flex; flex-direction:column; gap:1rem;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div style="border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.75rem; background:var(--color-bg);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <div style="font-weight:600; color:var(--color-text);">Distribution mensuelle OK / NOK — {{ site_focus }}</div>
+                        <form hx-get="/api/sessions/comparaison" hx-target="#tab-content" hx-swap="innerHTML" style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="hidden" name="sites" value="{{ filters.sites }}">
+                            <input type="hidden" name="date_debut" value="{{ filters.date_debut }}">
+                            <input type="hidden" name="date_fin" value="{{ filters.date_fin }}">
+                            <input type="hidden" name="error_types" value="{{ filters.error_types }}">
+                            <input type="hidden" name="moments" value="{{ filters.moments }}">
+                            <input type="hidden" name="site_focus" value="{{ site_focus }}">
+                            <select name="month_focus" onchange="this.form.requestSubmit()" class="select-input">
+                                {% for m in month_options %}
+                                <option value="{{ m }}" {% if m == month_focus %}selected{% endif %}>{{ m }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                    {% if monthly_rows %}
+                    <div class="table-wrapper" style="max-height:360px;">
+                        <table class="sortable-table" style="min-width:520px;">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Mois</th>
+                                    <th data-sortable="true" data-type="number">OK</th>
+                                    <th data-sortable="true" data-type="number">NOK</th>
+                                    <th data-sortable="true" data-type="number">OK %</th>
+                                    <th data-sortable="true" data-type="number">NOK %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in monthly_rows %}
+                                <tr>
+                                    <td style="font-weight:600;">{{ row.month }}</td>
+                                    <td style="color:#15803d;" data-sort-value="{{ row.ok }}">{{ row.ok }}</td>
+                                    <td style="color:#dc2626;" data-sort-value="{{ row.nok }}">{{ row.nok }}</td>
+                                    <td data-sort-value="{{ row.ok_pct }}">{{ row.ok_pct }}%</td>
+                                    <td data-sort-value="{{ row.nok_pct }}">{{ row.nok_pct }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% set month_ns = namespace(max_total=0) %}
+                    {% for row in monthly_rows %}
+                        {% set total_val = row.ok + row.nok %}
+                        {% if total_val > month_ns.max_total %}
+                            {% set month_ns.max_total = total_val %}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="chart-stack" aria-label="Graphique distribution mensuelle">
+                        {% for row in monthly_rows %}
+                        {% set total_val = row.ok + row.nok %}
+                        {% set ok_ratio = (row.ok / month_ns.max_total * 100) if month_ns.max_total else 0 %}
+                        {% set nok_ratio = (row.nok / month_ns.max_total * 100) if month_ns.max_total else 0 %}
+                        <div class="chart-row">
+                            <div class="chart-label">{{ row.month }}</div>
+                            <div class="chart-bar">
+                                <div class="ok" style="width: {{ ok_ratio }}%"></div>
+                                <div class="nok" style="width: {{ nok_ratio }}%"></div>
+                            </div>
+                            <div class="chart-values">
+                                <span>{{ row.ok }}</span>
+                                <span>{{ row.nok }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <div>Aucune distribution mensuelle disponible.</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div style="border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.75rem; background:var(--color-bg);">
+                    <div style="font-weight:600; color:var(--color-text); margin-bottom:0.5rem;">Détail journalier — {{ site_focus }} {% if month_focus %}({{ month_focus }}){% endif %}</div>
+                    {% if daily_rows %}
+                    <div class="table-wrapper" style="max-height:360px;">
+                        <table class="sortable-table" style="min-width:520px;">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Jour</th>
+                                    <th data-sortable="true" data-type="number">OK</th>
+                                    <th data-sortable="true" data-type="number">NOK</th>
+                                    <th data-sortable="true" data-type="number">OK %</th>
+                                    <th data-sortable="true" data-type="number">NOK %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in daily_rows %}
+                                <tr>
+                                    <td style="font-weight:600;">{{ row.day }}</td>
+                                    <td style="color:#15803d;" data-sort-value="{{ row.ok }}">{{ row.ok }}</td>
+                                    <td style="color:#dc2626;" data-sort-value="{{ row.nok }}">{{ row.nok }}</td>
+                                    <td data-sort-value="{{ row.ok_pct }}">{{ row.ok_pct }}%</td>
+                                    <td data-sort-value="{{ row.nok_pct }}">{{ row.nok_pct }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% set day_ns = namespace(max_total=0) %}
+                    {% for row in daily_rows %}
+                        {% set total_val = row.ok + row.nok %}
+                        {% if total_val > day_ns.max_total %}
+                            {% set day_ns.max_total = total_val %}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="chart-stack" aria-label="Graphique détail journalier">
+                        {% for row in daily_rows %}
+                        {% set total_val = row.ok + row.nok %}
+                        {% set ok_ratio = (row.ok / day_ns.max_total * 100) if day_ns.max_total else 0 %}
+                        {% set nok_ratio = (row.nok / day_ns.max_total * 100) if day_ns.max_total else 0 %}
+                        <div class="chart-row">
+                            <div class="chart-label">{{ row.day }}</div>
+                            <div class="chart-bar">
+                                <div class="ok" style="width: {{ ok_ratio }}%"></div>
+                                <div class="nok" style="width: {{ nok_ratio }}%"></div>
+                            </div>
+                            <div class="chart-values">
+                                <span>{{ row.ok }}</span>
+                                <span>{{ row.nok }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📆</div>
+                        <div>Aucun détail journalier pour la sélection actuelle.</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">🏷️</div>
+            <div>Aucun site disponible après filtres.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    (() => {
+        const tables = document.querySelectorAll('.sortable-table');
+        tables.forEach((table) => {
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            if (!headers.length || !tbody) return;
+
+            let currentSort = { index: null, dir: 'asc' };
+
+            const parseValue = (text, type) => {
+                const cleaned = text.replace('%', '').replace(/\s+/g, '');
+                if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                    return parseFloat(cleaned);
+                }
+                return cleaned.toLowerCase();
+            };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aCell = a.children[index];
+                    const bCell = b.children[index];
+                    const aVal = parseValue(aCell?.dataset.sortValue ?? aCell?.textContent.trim() ?? '', type);
+                    const bVal = parseValue(bCell?.dataset.sortValue ?? bCell?.textContent.trim() ?? '', type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        });
+    })();
+</script>

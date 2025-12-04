@@ -1,0 +1,262 @@
+<div class="projection-filters">
+    <div class="projection-filter-group">
+        <label for="projection-site-select">Sites à afficher</label>
+        <select id="projection-site-select" multiple size="8">
+            {% for site in site_options %}
+                <option value="{{ site }}" {% if site in selected_sites %}selected{% endif %}>{{ site }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="projection-actions">
+        <label class="projection-checkbox">
+            <input type="checkbox" id="projection-hide-empty" {% if hide_empty %}checked{% endif %}>
+            Masquer les colonnes avec uniquement des 0
+        </label>
+        <p class="projection-hint">Sélectionnez un ou plusieurs sites pour générer la projection.</p>
+    </div>
+</div>
+
+<style>
+.projection-card {
+    background: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,.1);
+}
+.projection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    color: #e2e8f0;
+    font-weight: 600;
+}
+.projection-header small {
+    color: #94a3b8;
+    font-weight: 500;
+}
+.projection-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    overflow: hidden;
+    border-radius: 10px;
+}
+.projection-table th,
+.projection-table td {
+    border: 1px solid #1f2937;
+    padding: 8px 10px;
+    text-align: center;
+}
+.projection-table th {
+    background: #0b1221;
+    color: #cbd5e1;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.projection-table thead tr:nth-child(2) th {
+    top: 36px;
+}
+.projection-table td:first-child {
+    text-align: left;
+    color: #f8fafc;
+    font-weight: 600;
+    white-space: nowrap;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: linear-gradient(90deg, #0b1221 0%, #0f172a 100%);
+}
+.projection-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+}
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.legend-swatch {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #1f2937;
+    border-radius: 3px;
+}
+.table-wrapper {
+    overflow-x: auto;
+    margin-top: 10px;
+}
+.projection-filters {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.projection-filter-group label {
+    font-weight: 700;
+    color: #0f172a;
+    display: block;
+    margin-bottom: 6px;
+}
+#projection-site-select {
+    width: 260px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+}
+.projection-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: #0f172a;
+}
+.projection-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+.projection-hint {
+    color: #475569;
+    font-size: 0.9rem;
+    margin: 0;
+}
+</style>
+
+{% if show_prompt %}
+    <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <div>Aucun site sélectionné. Choisissez un ou plusieurs sites dans la liste pour charger la projection.</div>
+    </div>
+{% elif no_data %}
+    <div class="empty-state">
+        <div class="empty-icon">📑</div>
+        <div>Aucune donnée pour cette période.</div>
+    </div>
+{% elif no_errors %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>Aucune erreur à afficher sur ce périmètre.</div>
+    </div>
+{% else %}
+<h3 style="font-size: 1.2rem; margin-bottom: 1rem; color: #0f172a;">Projection pivot — Moments × Codes</h3>
+
+{% macro cell_style(val) %}
+    {% set v = val|float %}
+    {% if v == 0 %}background-color: #ffffff; color: #0f172a;{% elif v <= 2 %}background-color: #E8F1FB; color: #0f172a;{% elif v <= 6 %}background-color: #CFE3F7; color: #0f172a;{% elif v <= 15 %}background-color: #A9CFF2; color: #0f172a;{% elif v <= 25 %}background-color: #7DB5EA; color: #0f172a;{% elif v <= 50 %}background-color: #4F97D9; color: white;{% elif v <= 100 %}background-color: #2F6FB7; color: white;{% else %}background-color: #1F4F8F; color: white;{% endif %}
+{% endmacro %}
+
+{% for site in sites %}
+<div class="projection-card">
+    <div class="projection-header">
+        <div>📍 {{ site.site }}</div>
+        <small>Taux de réussite : {{ "%.1f"|format(site.success_rate) }}% ({{ site.ok_site }}/{{ site.total_site }} charges réussies)</small>
+    </div>
+    <div class="table-wrapper">
+        <table class="projection-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">Site / PDC</th>
+                    {% for header in site.moment_headers %}
+                        <th colspan="{{ header.span }}">{{ header.moment }}</th>
+                    {% endfor %}
+                    <th rowspan="2">∑</th>
+                    <th rowspan="2">%</th>
+                </tr>
+                <tr>
+                    {% for col in site.columns %}
+                        <th>{{ col.code }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in site.rows %}
+                <tr>
+                    <td>{{ row.label }}</td>
+                    {% for val in row["values"] %}
+                        <td style="{{ cell_style(val) }}">{{ val }}</td>
+                    {% endfor %}
+                    <td style="font-weight:700; background:#0b1221;">{{ row.total }}</td>
+                    <td style="font-weight:700; background:#0b1221;">{{ "%.1f"|format(row.percent) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+<div class="projection-card" style="background:#0b1221;">
+    <div class="projection-header" style="margin-bottom:6px;">
+        <div>🗺️ Légende (occurrences)</div>
+    </div>
+    <div class="legend-grid">
+        <div class="legend-item"><span class="legend-swatch" style="background:#ffffff;"></span>0</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#E8F1FB;"></span>0–2</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#CFE3F7;"></span>2–6</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#A9CFF2;"></span>6–15</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#7DB5EA;"></span>15–25</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#4F97D9;"></span>25–50</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#2F6FB7;"></span>50–100</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#1F4F8F;"></span>> 100</div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    (function() {
+        const select = document.getElementById('projection-site-select');
+        const hideEmpty = document.getElementById('projection-hide-empty');
+
+        function syncProjectionFilters() {
+            if (!window.updateProjectionSelection) return;
+            const selected = Array.from(select?.selectedOptions || []).map(o => o.value);
+            window.updateProjectionSelection(selected);
+        }
+
+        function syncHideEmpty() {
+            if (!window.updateProjectionHideEmpty) return;
+            window.updateProjectionHideEmpty(!!hideEmpty?.checked);
+        }
+
+        if (select) {
+            select.addEventListener('change', syncProjectionFilters);
+            select.addEventListener('mousedown', (event) => {
+                const option = event.target;
+                if (option.tagName === 'OPTION') {
+                    event.preventDefault();
+                    option.selected = !option.selected;
+                    syncProjectionFilters();
+                }
+            });
+        }
+        if (hideEmpty) hideEmpty.addEventListener('change', syncHideEmpty);
+
+        if (window.updateProjectionSelection) {
+            window.updateProjectionSelection(Array.from(select?.selectedOptions || []).map(o => o.value), true);
+        }
+        if (window.updateProjectionHideEmpty) {
+            window.updateProjectionHideEmpty(!!hideEmpty?.checked, true);
+        }
+    })();
+</script>

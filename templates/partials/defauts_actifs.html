@@ -1,0 +1,46 @@
+<!-- Fragment: Défauts actifs -->
+<div class="kpi-card {{ status }}">
+    <p class="kpi-value">{{ nb_defauts }}</p>
+    <p class="kpi-label">défaut{{ 's' if nb_defauts != 1 else '' }} en cours</p>
+    <p class="kpi-sublabel">sur {{ nb_sites }} site{{ 's' if nb_sites != 1 else '' }}</p>
+</div>
+
+{% if sites_recent %}
+<div class="watch-card">
+    <div class="title">
+        🔍 <strong>{{ sites_recent|length }}</strong> site{{ 's' if sites_recent|length > 1 else '' }} à surveiller (défauts &lt; 24h)
+    </div>
+    <div class="sites">Sites : {{ sites_recent|join(', ') }}</div>
+</div>
+{% endif %}
+
+{% if defauts_par_site %}
+<div class="defauts-list" style="margin-top: 1rem;">
+    {% for site, defauts in defauts_par_site.items() %}
+    <div class="site-expander">
+        <div class="site-header" onclick="this.nextElementSibling.classList.toggle('open')">
+            <span class="site-name">📍 {{ site }}</span>
+            <span class="site-count">{{ defauts|length }} défaut{{ 's' if defauts|length > 1 else '' }}</span>
+        </div>
+        <div class="site-content">
+            <div class="defects-grid">
+                {% for d in defauts %}
+                <div class="defect-card {{ d.card_class }}">
+                    <div class="defect-name">⚠️ {{ d.defaut }}</div>
+                    <div class="equipment">🔧 {{ d.eqp }}</div>
+                    <div class="duration">Depuis {{ d.depuis_jours }} jour{{ 's' if d.depuis_jours != 1 else '' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if nb_defauts == 0 %}
+<div class="empty-state" style="margin-top: 1rem;">
+    <div class="icon">✅</div>
+    <div class="message">Aucun défaut actif</div>
+</div>
+{% endif %}

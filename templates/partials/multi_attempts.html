@@ -1,0 +1,231 @@
+<div class="panel">
+    <div class="panel-header">
+        <div>
+            <div class="panel-title">Tentatives multiples dans la même heure</div>
+            <div class="panel-subtitle">Liste des utilisateurs ayant tenté plusieurs charges sur le même créneau horaire</div>
+        </div>
+        {% if rows %}
+        <div class="pill pill-neutral">{{ rows|length }} occurrence{{ 's' if rows|length > 1 else '' }}</div>
+        {% endif %}
+    </div>
+
+    <style>
+        .panel {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .panel-title {
+            font-weight: 700;
+            color: var(--color-text);
+            font-size: 1.05rem;
+        }
+        .panel-subtitle {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+        .pill-neutral {
+            background: var(--color-info-light);
+            border-color: rgba(59, 130, 246, 0.2);
+            color: var(--color-info);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .badge-warning {
+            background: var(--color-warning-light);
+            color: var(--color-warning);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+        }
+        .badge-info {
+            background: var(--color-info-light);
+            color: var(--color-info);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+        }
+        .table-wrapper-multi {
+            overflow: auto;
+            max-height: 600px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+        }
+        .multi-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 840px;
+        }
+        .multi-table th {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface);
+            cursor: pointer;
+            text-align: left;
+            padding: 0.55rem;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+        .multi-table td {
+            padding: 0.55rem;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.9rem;
+            color: var(--color-text);
+            vertical-align: middle;
+        }
+        .multi-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .multi-table th.sorted-asc::after { content: ' ▲'; font-size: 0.75rem; color: var(--color-text-muted); }
+        .multi-table th.sorted-desc::after { content: ' ▼'; font-size: 0.75rem; color: var(--color-text-muted); }
+        .ids-cell a {
+            color: var(--color-info);
+            text-decoration: none;
+        }
+        .ids-cell a:hover { text-decoration: underline; }
+        .muted-text { color: var(--color-text-muted); }
+    </style>
+
+    {% if rows %}
+    <div class="table-wrapper-multi">
+        <table class="multi-table" id="multi-table">
+            <thead>
+                <tr>
+                    <th data-sortable="true" data-type="number">#</th>
+                    <th data-sortable="true">Site</th>
+                    <th data-sortable="true">Heure</th>
+                    <th data-sortable="true">MAC</th>
+                    <th data-sortable="true">Véhicule</th>
+                    <th data-sortable="true" data-type="number">Tentatives</th>
+                    <th data-sortable="true">PDC(s)</th>
+                    <th data-sortable="true">1ère tentative</th>
+                    <th data-sortable="true">Dernière tentative</th>
+                    <th data-sortable="true">ID(s)</th>
+                    {% for col in soc_columns %}
+                    <th data-sortable="true">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                {% set badge_class = 'badge-warning' if row.tentatives >= 3 else 'badge-info' %}
+                <tr>
+                    <td data-sort-value="{{ row.rank }}" class="muted-text">{{ row.rank }}</td>
+                    <td>{{ row.site }}</td>
+                    <td>{{ row.hour }}</td>
+                    <td>{{ row.mac }}</td>
+                    <td>{{ row.vehicle }}</td>
+                    <td data-sort-value="{{ row.tentatives }}"><span class="badge {{ badge_class }}">{{ row.tentatives }}</span></td>
+                    <td>{{ row.pdc }}</td>
+                    <td data-sort-value="{{ row.first_attempt }}">{{ row.first_attempt }}</td>
+                    <td data-sort-value="{{ row.last_attempt }}">{{ row.last_attempt }}</td>
+                    <td class="ids-cell">
+                        {% if row.ids %}
+                            {% for item in row.ids %}
+                                <a href="{{ item.url }}" target="_blank">{{ item.id }}</a>{% if not loop.last %} · {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span class="muted-text">-</span>
+                        {% endif %}
+                    </td>
+                    {% for col in soc_columns %}
+                    {% set val = row.soc_values.get(col, '') %}
+                    <td data-sort-value="{{ val }}">{{ val }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        (() => {
+            const table = document.getElementById('multi-table');
+            if (!table) return;
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            let currentSort = { index: null, dir: 'asc' };
+
+            const parseValue = (text, type) => {
+                const cleaned = (text || '').replace('%', '').replace(/\s+/g, '');
+                if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                    return parseFloat(cleaned);
+                }
+                return cleaned.toLowerCase();
+            };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aVal = parseValue(a.children[index].dataset.sortValue ?? a.children[index].textContent.trim(), type);
+                    const bVal = parseValue(b.children[index].dataset.sortValue ?? b.children[index].textContent.trim(), type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        })();
+    </script>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>Aucun utilisateur n'a essayé plusieurs fois dans la même heure sur ce périmètre.</div>
+    </div>
+    {% endif %}
+</div>

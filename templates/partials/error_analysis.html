@@ -1,0 +1,1002 @@
+<style>
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 1rem;
+    }
+    .analysis-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+    }
+    .analysis-title {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--color-text);
+    }
+    .table-wrapper {
+        overflow: auto;
+        margin-top: 0.5rem;
+        max-height: 420px;
+    }
+    .analysis-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    .analysis-table th,
+    .analysis-table td {
+        border: 1px solid var(--color-border);
+        padding: 0.5rem;
+        text-align: left;
+    }
+    .analysis-table th {
+        background: #f8fafc;
+        color: var(--color-text-muted);
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+    }
+    .analysis-table th.sorted-asc::after { content: ' ▲'; font-size: 0.75rem; color: var(--color-text-muted); }
+    .analysis-table th.sorted-desc::after { content: ' ▼'; font-size: 0.75rem; color: var(--color-text-muted); }
+    .analysis-table tbody tr:nth-child(even) {
+        background: #f9fafb;
+    }
+    .message {
+        padding: 0.75rem 1rem;
+        background: var(--color-info-light);
+        color: #1d4ed8;
+        border-radius: var(--radius-md);
+        border: 1px solid #bfdbfe;
+        margin: 0.5rem 0;
+    }
+    .table-chart-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.6fr;
+        gap: 1rem;
+        align-items: start;
+    }
+    .pie-card {
+        background: #f8fafc;
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+        text-align: center;
+    }
+    .pie-chart {
+        width: 180px;
+        height: 180px;
+        margin: 0 auto;
+    }
+    .pie-legend {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        align-items: flex-start;
+    }
+    .pie-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--color-text);
+    }
+    .pie-legend-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+    .bar-card {
+        background: #f8fafc;
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+    }
+    .chart-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 0.25rem;
+    }
+    .bar-row {
+        display: grid;
+        grid-template-columns: 140px 1fr 70px;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .bar-label {
+        font-weight: 600;
+        color: var(--color-text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .bar-track {
+        position: relative;
+        height: 12px;
+        width: 100%;
+        min-width: 160px;
+        background: linear-gradient(90deg, #e2e8f0 0%, #e2e8f0 100%);
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+    }
+    .bar-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.3s ease, opacity 0.2s ease;
+    }
+    .bar-value {
+        text-align: right;
+        color: var(--color-text);
+        font-variant-numeric: tabular-nums;
+    }
+    .chart-tooltip {
+        position: absolute;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        pointer-events: none;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+        z-index: 9999;
+        display: none;
+    }
+</style>
+
+<div class="section-title">🔍 Analyse des erreurs</div>
+
+{% if no_data %}
+    <div class="message">Aucune donnée pour la période et les filtres sélectionnés.</div>
+{% elif no_errors %}
+    <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+{% else %}
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs (EVI + Downstream)</div>
+            {% if top_all %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true">Type</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_all %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td>{{ row.type }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur combinée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail Top 3 par site</div>
+            {% if detail_all_pivot.columns %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                {% for col in detail_all_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_all_pivot.rows %}
+                            <tr>
+                                {% for col in detail_all_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs EVI</div>
+            {% if top_evi %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code EVI</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_evi %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur EVI trouvée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail EVI Top 3 par site</div>
+            {% if detail_evi_pivot.columns %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                {% for col in detail_evi_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_evi_pivot.rows %}
+                            <tr>
+                                {% for col in detail_evi_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail EVI disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs Downstream</div>
+            {% if top_ds %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_ds %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur Downstream trouvée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail Downstream Top 3 par site</div>
+            {% if detail_ds_pivot.columns %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                {% for col in detail_ds_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_ds_pivot.rows %}
+                            <tr>
+                                {% for col in detail_ds_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail Downstream disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+            <div class="analysis-title">EVI — Moment × Code</div>
+            {% if evi_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code %}
+                            <tr>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur correspondant à la logique 'Erreur_EVI' pour ce périmètre.</div>
+            {% endif %}
+
+            <div class="analysis-title" style="margin-top: 1rem;">EVI — Moment × Code × Site</div>
+            {% if evi_moment_code_site %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code_site %}
+                            <tr>
+                                <td>{{ row["Site"] }}</td>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée EVI par site.</div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Downstream — Moment × Code PC</div>
+            {% if ds_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code %}
+                            <tr>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code PC"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun Downstream Code PC non nul pour ce périmètre.</div>
+            {% endif %}
+
+            <div class="analysis-title" style="margin-top: 1rem;">Downstream — Moment × Code PC × Site</div>
+            {% if ds_moment_code_site %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code_site %}
+                            <tr>
+                                <td>{{ row["Site"] }}</td>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code PC"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée Downstream par site.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-card" style="margin-top: 1rem;">
+        <div class="analysis-title">Résumé par site et phase</div>
+        {% if site_summary %}
+            <div class="table-wrapper">
+                <table class="analysis-table">
+                    <thead>
+                        <tr>
+                            <th data-sortable="true">Site</th>
+                            <th data-sortable="true" data-type="number">Total</th>
+                            <th data-sortable="true" data-type="number">OK</th>
+                            <th data-sortable="true" data-type="number">NOK</th>
+                            <th data-sortable="true" data-type="number">% Réussite</th>
+                            <th data-sortable="true" data-type="number">% Erreurs</th>
+                            <th data-sortable="true" data-type="number">Nb Avant charge</th>
+                            <th data-sortable="true" data-type="number">Nb Charge</th>
+                            <th data-sortable="true" data-type="number">Nb Fin de charge</th>
+                            <th data-sortable="true" data-type="number">Nb Unknown</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in site_summary %}
+                        <tr>
+                            <td>{{ row["Site"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Total_Charges"] }}">{{ row["Total_Charges"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charges_OK"] }}">{{ row["Charges_OK"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charges_NOK"] }}">{{ row["Charges_NOK"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row['% Réussite']) }}">{{ '%.2f'|format(row['% Réussite']) }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row['% Erreurs']) }}">{{ '%.2f'|format(row['% Erreurs']) }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Avant charge"] }}">{{ row["Avant charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charge"] }}">{{ row["Charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Fin de charge"] }}">{{ row["Fin de charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Unknown"] }}">{{ row["Unknown"] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="message">Aucun résumé par site disponible.</div>
+        {% endif %}
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+            <div class="analysis-title">Répartition des types d'erreur</div>
+            {% if error_type_counts %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="error-type-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Type d'erreur</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in error_type_counts %}
+                                <tr>
+                                    <td>{{ row["type_erreur"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="error-type-table">
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Moments d'erreur (EVI + Downstream)</div>
+            {% if moment_counts %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in moment_counts %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="moment-table">
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-card" style="margin-top: 1rem;">
+        <div class="analysis-title">Moments d'erreur (Avancé)</div>
+        {% if moment_adv_counts %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="moment-adv-table">
+                            <thead>
+                                <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in moment_adv_counts %}
+                            <tr>
+                                <td>{{ row["moment_avancee"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="moment-adv-table">
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="moment-adv-table">
+                            <div class="bar-chart"></div>
+                        </div>
+                    </div>
+                </div>
+        {% else %}
+            <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+        {% endif %}
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+        <div class="analysis-title">Répartition des erreurs EVI par moment</div>
+        {% if evi_moment_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="evi-moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                    <th data-sortable="true" data-type="number">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in evi_moment_distribution %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="evi-moment-table">
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
+                </div>
+        {% else %}
+            <div class="message">Aucune erreur EVI pour les filtres choisis.</div>
+        {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Répartition avancée des erreurs EVI</div>
+            {% if evi_moment_adv_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="evi-adv-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment avancé</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in evi_moment_adv_distribution %}
+                                <tr>
+                                    <td>{{ row["moment_avancee"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="evi-adv-table">
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="evi-adv-table">
+                            <div class="bar-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur EVI (avancé) pour les filtres choisis.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+        <div class="analysis-title">Répartition des erreurs DownStream par moment</div>
+        {% if ds_moment_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="ds-moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                    <th data-sortable="true" data-type="number">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ds_moment_distribution %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="ds-moment-table">
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
+                </div>
+        {% else %}
+            <div class="message">Aucune erreur DownStream pour les filtres choisis.</div>
+        {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Répartition avancée des erreurs DownStream</div>
+            {% if ds_moment_adv_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="ds-adv-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment avancé</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ds_moment_adv_distribution %}
+                                <tr>
+                                    <td>{{ row["moment_avancee"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="ds-adv-table">
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="ds-adv-table">
+                            <div class="bar-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur DownStream (avancé) pour les filtres choisis.</div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<script>
+    (() => {
+        const tables = document.querySelectorAll('.analysis-table');
+        const parseValue = (text, type) => {
+            const cleaned = (text || '').toString().replace('%', '').replace(/\s+/g, '');
+            if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                return parseFloat(cleaned);
+            }
+            return cleaned.toLowerCase();
+        };
+
+        tables.forEach((table) => {
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            let currentSort = { index: null, dir: 'asc' };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aVal = parseValue(a.children[index].dataset.sortValue ?? a.children[index].textContent.trim(), type);
+                    const bVal = parseValue(b.children[index].dataset.sortValue ?? b.children[index].textContent.trim(), type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach((row) => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        });
+    })();
+
+    (() => {
+        const palettes = ['#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#facc15', '#3b82f6', '#22c55e'];
+        const tooltip = document.querySelector('.chart-tooltip') || (() => {
+            const el = document.createElement('div');
+            el.className = 'chart-tooltip';
+            document.body.appendChild(el);
+            return el;
+        })();
+
+        const showTooltip = (content, event) => {
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+            const offset = 12;
+            tooltip.style.left = `${event.pageX + offset}px`;
+            tooltip.style.top = `${event.pageY + offset}px`;
+        };
+
+        const hideTooltip = () => {
+            tooltip.style.display = 'none';
+        };
+
+        const buildPie = (container, data) => {
+            const total = data.reduce((sum, item) => sum + item.value, 0);
+            const pieEl = container.querySelector('.pie-chart');
+            const legendEl = container.querySelector('.pie-legend');
+
+            if (!pieEl || !legendEl) return;
+
+            if (total <= 0) {
+                pieEl.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Aucune donnée</p>';
+                legendEl.innerHTML = '';
+                return;
+            }
+
+            let cumulative = 0;
+            const size = 180;
+            const center = size / 2;
+            const radius = size / 2;
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', size);
+            svg.setAttribute('height', size);
+            svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+
+            data.forEach((item, idx) => {
+                const startAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+                const slice = (item.value / total) * 2 * Math.PI;
+                cumulative += item.value / total;
+                const endAngle = startAngle + slice;
+
+                const x1 = center + radius * Math.cos(startAngle);
+                const y1 = center + radius * Math.sin(startAngle);
+                const x2 = center + radius * Math.cos(endAngle);
+                const y2 = center + radius * Math.sin(endAngle);
+                const largeArc = slice > Math.PI ? 1 : 0;
+
+                const path = document.createElementNS(svgNS, 'path');
+                path.setAttribute('d', `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`);
+                path.setAttribute('fill', palettes[idx % palettes.length]);
+                path.setAttribute('aria-label', `${item.label}: ${item.value}`);
+                path.style.cursor = 'pointer';
+
+                const percent = ((item.value / total) * 100).toFixed(1);
+                path.addEventListener('mouseenter', (event) => {
+                    path.style.opacity = '0.85';
+                    showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percent}%)`, event);
+                });
+                path.addEventListener('mousemove', (event) => showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percent}%)`, event));
+                path.addEventListener('mouseleave', () => {
+                    path.style.opacity = '1';
+                    hideTooltip();
+                });
+
+                svg.appendChild(path);
+            });
+
+            pieEl.innerHTML = '';
+            pieEl.appendChild(svg);
+
+            legendEl.innerHTML = '';
+            data.forEach((item, idx) => {
+                const percent = ((item.value / total) * 100).toFixed(1);
+                const legendItem = document.createElement('div');
+                legendItem.className = 'pie-legend-item';
+                legendItem.innerHTML = `
+                    <span class="pie-legend-swatch" style="background:${palettes[idx % palettes.length]};"></span>
+                    <span>${item.label} — ${percent}% (${item.value})</span>
+                `;
+                legendEl.appendChild(legendItem);
+            });
+        };
+
+        const buildBars = (container, data) => {
+            const chart = container.querySelector('.bar-chart');
+            if (!chart) return;
+
+            if (!data.length) {
+                chart.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Aucune donnée</p>';
+                return;
+            }
+
+            const maxValue = Math.max(...data.map((item) => item.value));
+            const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
+            chart.innerHTML = '';
+
+            data.forEach((item, idx) => {
+                const percentOfMax = maxValue ? (item.value / maxValue) * 100 : 0;
+                const percentOfTotal = ((item.value / total) * 100).toFixed(1);
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = item.label;
+
+                const track = document.createElement('div');
+                track.className = 'bar-track';
+
+                const fill = document.createElement('div');
+                fill.className = 'bar-fill';
+                fill.style.width = `${percentOfMax}%`;
+                fill.style.background = palettes[idx % palettes.length];
+                fill.style.cursor = 'pointer';
+
+                fill.addEventListener('mouseenter', (event) => {
+                    fill.style.opacity = '0.85';
+                    showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percentOfTotal}%)`, event);
+                });
+                fill.addEventListener('mousemove', (event) => showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percentOfTotal}%)`, event));
+                fill.addEventListener('mouseleave', () => {
+                    fill.style.opacity = '1';
+                    hideTooltip();
+                });
+
+                track.appendChild(fill);
+
+                const value = document.createElement('div');
+                value.className = 'bar-value';
+                value.textContent = item.value;
+
+                row.appendChild(label);
+                row.appendChild(track);
+                row.appendChild(value);
+                chart.appendChild(row);
+            });
+        };
+
+        const extractData = (table, { excludeTotal = false } = {}) => {
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            return rows
+                .map((row) => {
+                    const cells = Array.from(row.children);
+                    const label = cells[0]?.textContent.trim() || '';
+                    const numericCell = cells.slice(1).find((cell) => {
+                        const raw = cell.dataset.sortValue ?? cell.textContent;
+                        const cleaned = raw.toString().replace('%', '').replace(',', '.').trim();
+                        return cleaned !== '' && !isNaN(cleaned);
+                    });
+                    const rawValue = numericCell ? (numericCell.dataset.sortValue ?? numericCell.textContent) : '0';
+                    const value = parseFloat(rawValue.toString().replace('%', '').replace(',', '.')) || 0;
+                    return { label, value };
+                })
+                .filter((item) => item.label !== '' && (!excludeTotal || item.label.toLowerCase() !== 'total'));
+        };
+
+        document.querySelectorAll('[data-pie-source]').forEach((container) => {
+            const tableId = container.dataset.pieSource;
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const data = extractData(table, { excludeTotal: true });
+            buildPie(container, data);
+        });
+
+        document.querySelectorAll('[data-bar-source]').forEach((container) => {
+            const tableId = container.dataset.barSource;
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const data = extractData(table, { excludeTotal: true });
+            buildBars(container, data);
+        });
+    })();
+</script>

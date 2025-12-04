@@ -1,0 +1,443 @@
+{% set has_data = site_options and site_focus %}
+<div style="display:flex; flex-direction:column; gap:1rem;">
+    <style>
+        .table-wrapper {
+            overflow: auto;
+            max-height: 520px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+        }
+        .table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-wrapper thead th {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface);
+            text-align: left;
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+        .table-wrapper tbody td {
+            padding: 0.55rem;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.9rem;
+            color: var(--color-text);
+            white-space: nowrap;
+        }
+        .table-wrapper tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .sortable-table thead th[data-sortable] {
+            cursor: pointer;
+        }
+        .sortable-table th.sorted-asc::after { content: ' ▲'; font-size: 0.75rem; color: var(--color-text-muted); }
+        .sortable-table th.sorted-desc::after { content: ' ▼'; font-size: 0.75rem; color: var(--color-text-muted); }
+    </style>
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:1rem;">
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+                <div class="filter-label">Site</div>
+                <select id="site-focus" class="select-input">
+                    {% for site in site_options %}
+                    <option value="{{ site }}" {% if site == site_focus %}selected{% endif %}>{{ site }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="flex:1; min-width:260px;">
+                <div class="filter-label">PDC</div>
+                <div style="border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button id="pdc-toggle" class="btn" type="button">{{ '☑ Tous' if pdc_options|length == selected_pdc|length else '☐ Tous' }}</button>
+                    {% for p in pdc_options %}
+                    <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.9rem;">
+                        <input type="checkbox" name="pdc-option" value="{{ p }}" {% if p in selected_pdc %}checked{% endif %}> {{ p }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not has_data %}
+    <div class="empty-state">
+        <div class="icon">📊</div>
+        <div class="message">Aucune donnée disponible pour ce périmètre.</div>
+    </div>
+    {% else %}
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+        <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+            <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Charges OK</div>
+            {% if ok_rows %}
+            <div class="table-wrapper">
+                <table class="sortable-table" style="min-width:720px;">
+                    <thead>
+                        <tr>
+                            <th data-sortable="true" data-type="number">#</th>
+                            <th data-sortable="true">ID</th>
+                            <th data-sortable="true">Début</th>
+                            <th data-sortable="true">Fin</th>
+                            <th data-sortable="true">PDC</th>
+                            <th data-sortable="true" data-type="number">Énergie (kWh)</th>
+                            <th data-sortable="true">MAC</th>
+                            <th data-sortable="true" data-type="number">Évolution SOC</th>
+                            <th>Lien</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in ok_rows %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ row['ID'] }}</td>
+                            <td>{{ row['Datetime start'] }}</td>
+                            <td>{{ row['Datetime end'] }}</td>
+                            <td>{{ row['PDC'] }}</td>
+                            <td>{{ row['Energy (Kwh)']|round(3) if row['Energy (Kwh)'] is not none else '' }}</td>
+                            <td>{{ row['MAC Address'] }}</td>
+                            <td>{{ row['evolution_soc'] }}</td>
+                            <td>{% if row['elto'] %}<a href="{{ row['elto'] }}" target="_blank">🔗</a>{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">ℹ️</div>
+                <div class="message">Aucune charge réussie sur ce périmètre.</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+            <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Charges NOK</div>
+            {% if err_rows %}
+            <div class="table-wrapper">
+                <table class="sortable-table" style="min-width:760px;">
+                    <thead>
+                        <tr>
+                            <th data-sortable="true" data-type="number">#</th>
+                            <th data-sortable="true">ID</th>
+                            <th data-sortable="true">Début</th>
+                            <th data-sortable="true">Fin</th>
+                            <th data-sortable="true">PDC</th>
+                            <th data-sortable="true" data-type="number">Énergie (kWh)</th>
+                            <th data-sortable="true">MAC</th>
+                            <th data-sortable="true">Erreur</th>
+                            <th data-sortable="true">Moment</th>
+                            <th data-sortable="true" data-type="number">Évolution SOC</th>
+                            <th>Lien</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in err_rows %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ row['ID'] }}</td>
+                            <td>{{ row['Datetime start'] }}</td>
+                            <td>{{ row['Datetime end'] }}</td>
+                            <td>{{ row['PDC'] }}</td>
+                            <td>{{ row['Energy (Kwh)']|round(3) if row['Energy (Kwh)'] is not none else '' }}</td>
+                            <td>{{ row['MAC Address'] }}</td>
+                            <td>{{ row['type_erreur'] }}</td>
+                            <td>{{ row['moment'] }}</td>
+                            <td>{{ row['evolution_soc'] }}</td>
+                            <td>{% if row['elto'] %}<a href="{{ row['elto'] }}" target="_blank">🔗</a>{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">✅</div>
+                <div class="message">Aucune charge en erreur sur ce périmètre.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr; gap:1rem;">
+        <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+            <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Récapitulatif des charges par PDC</div>
+            {% if by_pdc %}
+            <div class="table-wrapper">
+                <table class="sortable-table" style="min-width:620px;">
+                    <thead>
+                        <tr>
+                            <th data-sortable="true">PDC</th>
+                            <th data-sortable="true" data-type="number">Total</th>
+                            <th data-sortable="true" data-type="number">OK</th>
+                            <th data-sortable="true" data-type="number">NOK</th>
+                            <th data-sortable="true" data-type="number">% Réussite</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in by_pdc %}
+                        <tr>
+                            <td style="font-weight:600;">{{ row['PDC'] }}</td>
+                            <td>{{ row['Total_Charges'] }}</td>
+                            <td style="color:#15803d;">{{ row['Charges_OK'] }}</td>
+                            <td style="color:#dc2626;">{{ row['Charges_NOK'] }}</td>
+                            <td style="color:#1d4ed8;">{{ row['% Réussite'] }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">📈</div>
+                <div class="message">Aucune charge pour ce site et ces PDC.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+        <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Taux de réussite par PDC</div>
+        {% if by_pdc %}
+        <div class="bar-chart">
+            {% for row in by_pdc %}
+            <div class="bar-row">
+                <span class="bar-label">{{ row['PDC'] }}</span>
+                <div class="bar-container">
+                    <div class="bar bar-success" style="width: {{ row['% Réussite'] }}%;"></div>
+                </div>
+                <span class="bar-value text-primary">{{ row['% Réussite'] }}% ({{ row['Charges_OK'] }}/{{ row['Total_Charges'] }})</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">📈</div>
+            <div class="message">Aucune charge pour ce site et ces PDC.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+        <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Moments d’erreur EVI (regroupés)</div>
+        {% if evi_moment_grouped %}
+        <div class="bar-chart">
+            {% for item in evi_moment_grouped %}
+            {% set color_map = {
+                'Avant charge': '#636EFA',
+                'Charge': '#00CC96',
+                'Fin de charge': '#AB63FA',
+                'Unknown': '#FFA15A'
+            } %}
+            <div class="bar-row">
+                <span class="bar-label">{{ item.Moment_grp }}</span>
+                <div class="bar-container">
+                    <div class="bar" style="width: {{ item.percent }}%; background: {{ color_map.get(item.Moment_grp, 'var(--color-accent)') }};"></div>
+                </div>
+                <span class="bar-value">{{ item.Nb }} ({{ item.percent }}%)</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">ℹ️</div>
+            <div class="message">Aucun moment d’erreur regroupé sur ce périmètre.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem;">
+        <div style="font-weight:700; margin-bottom:0.75rem; color:var(--color-text);">Répartition des erreurs EVI par moment</div>
+        {% if evi_moment %}
+        <div class="bar-chart">
+            {% for item in evi_moment %}
+            <div class="bar-row">
+                <span class="bar-label">{{ item.moment }}</span>
+                <div class="bar-container">
+                    <div class="bar bar-danger" style="width: {{ item.percent }}%;"></div>
+                </div>
+                <span class="bar-value text-danger">{{ item.Nb }} ({{ item.percent }}%)</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">📉</div>
+            <div class="message">Aucune erreur EVI pour ce site.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; display:flex; flex-direction:column; gap:1rem;">
+        <div style="font-weight:700; margin-bottom:0.25rem; color:var(--color-text);">Occurrences des erreurs par code — {{ site_focus }}</div>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+            <div style="flex:1; min-width:320px;">
+                <div style="font-weight:600; margin-bottom:0.35rem;">Downstream Code PC × Moment</div>
+                {% if downstream_occ %}
+                <div class="table-wrapper">
+                    <table class="sortable-table" style="min-width:620px;">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true" data-type="number">#</th>
+                                <th data-sortable="true" data-type="number">Code_PC</th>
+                                {% for m in downstream_moments %}
+                                <th data-sortable="true" data-type="number">{{ m }}</th>
+                                {% endfor %}
+                                <th data-sortable="true" data-type="number">Total</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in downstream_occ %}
+                            <tr>
+                                <td>{{ row.Rank }}</td>
+                                <td>{{ row.Code_PC }}</td>
+                                {% for m in downstream_moments %}
+                                <td>{{ row[m] if row[m] is not none else 0 }}</td>
+                                {% endfor %}
+                                <td data-sort-value="{{ row.Total }}">{{ row.Total }}</td>
+                                <td data-sort-value="{{ row.Percent }}">{{ row.Percent|round(2) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="icon">ℹ️</div>
+                    <div class="message">Aucun Downstream Code PC non nul sur ce périmètre.</div>
+                </div>
+                {% endif %}
+            </div>
+            <div style="flex:1; min-width:320px;">
+                <div style="font-weight:600; margin-bottom:0.35rem;">EVI Error Code × Moment</div>
+                {% if evi_occ %}
+                <div class="table-wrapper">
+                    <table class="sortable-table" style="min-width:620px;">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true" data-type="number">#</th>
+                                <th data-sortable="true" data-type="number">EVI_Code</th>
+                                {% for m in evi_occ_moments %}
+                                <th data-sortable="true" data-type="number">{{ m }}</th>
+                                {% endfor %}
+                                <th data-sortable="true" data-type="number">Total</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_occ %}
+                            <tr>
+                                <td>{{ row.Rank }}</td>
+                                <td>{{ row.EVI_Code }}</td>
+                                {% for m in evi_occ_moments %}
+                                <td>{{ row[m] if row[m] is not none else 0 }}</td>
+                                {% endfor %}
+                                <td data-sort-value="{{ row.Total }}">{{ row.Total }}</td>
+                                <td data-sort-value="{{ row.Percent }}">{{ row.Percent|round(2) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="icon">ℹ️</div>
+                    <div class="message">Aucun EVI Error Code non nul sur ce périmètre.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(() => {
+    const enhanceSortableTables = () => {
+        const tables = document.querySelectorAll('.sortable-table');
+        tables.forEach((table) => {
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            if (!headers.length || !tbody) return;
+
+            let currentSort = { index: null, dir: 'asc' };
+
+            const parseValue = (text, type) => {
+                const cleaned = text.replace('%', '').replace(/\s+/g, '');
+                if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                    return parseFloat(cleaned);
+                }
+                return cleaned.toLowerCase();
+            };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aCell = a.children[index];
+                    const bCell = b.children[index];
+                    const aVal = parseValue(aCell?.dataset.sortValue ?? aCell?.textContent.trim() ?? '', type);
+                    const bVal = parseValue(bCell?.dataset.sortValue ?? bCell?.textContent.trim() ?? '', type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        });
+    };
+
+    const baseParams = new URLSearchParams("{{ base_query }}");
+    const reload = () => {
+        const params = new URLSearchParams(baseParams.toString());
+        const siteSelect = document.getElementById('site-focus');
+        if (siteSelect && siteSelect.value) params.set('site_focus', siteSelect.value);
+        const pdcs = Array.from(document.querySelectorAll('input[name="pdc-option"]:checked')).map(el => el.value);
+        if (pdcs.length) params.set('pdc', pdcs.join(','));
+        htmx.ajax('GET', `/api/sessions/site-details?${params.toString()}`, {target: '#tab-content', swap: 'innerHTML'});
+    };
+
+    enhanceSortableTables();
+
+    const siteSelect = document.getElementById('site-focus');
+    if (siteSelect) siteSelect.addEventListener('change', reload);
+
+    const pdcToggle = document.getElementById('pdc-toggle');
+    const pdcCheckboxes = Array.from(document.querySelectorAll('input[name="pdc-option"]'));
+    if (pdcToggle) {
+        pdcToggle.addEventListener('click', () => {
+            const allChecked = pdcCheckboxes.every(el => el.checked);
+            pdcCheckboxes.forEach(el => { el.checked = !allChecked; });
+            reload();
+        });
+    }
+    pdcCheckboxes.forEach(el => el.addEventListener('change', reload));
+})();
+</script>

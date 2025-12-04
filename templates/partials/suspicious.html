@@ -1,0 +1,218 @@
+<div class="panel">
+    <div class="panel-header">
+        <div>
+            <div class="panel-title">Transactions suspectes (&lt; 1 kWh)</div>
+            <div class="panel-subtitle">Liste des charges dont l'énergie consommée est inférieure à 1 kWh</div>
+        </div>
+        {% if rows %}
+        <div class="pill pill-neutral">{{ rows|length }} occurrence{{ 's' if rows|length > 1 else '' }}</div>
+        {% endif %}
+    </div>
+
+    <style>
+        .panel {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .panel-title {
+            font-weight: 700;
+            color: var(--color-text);
+            font-size: 1.05rem;
+        }
+        .panel-subtitle {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+        .pill-neutral {
+            background: var(--color-info-light);
+            border-color: rgba(59, 130, 246, 0.2);
+            color: var(--color-info);
+        }
+        .table-wrapper-suspicious {
+            overflow: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            max-height: 420px;
+        }
+        .suspicious-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 920px;
+        }
+        .suspicious-table th {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface);
+            text-align: left;
+            padding: 0.55rem;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+        .suspicious-table thead th[data-sortable] {
+            cursor: pointer;
+        }
+        .suspicious-table th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
+        .suspicious-table th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
+        .suspicious-table td {
+            padding: 0.55rem;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.9rem;
+            color: var(--color-text);
+            vertical-align: middle;
+        }
+        .suspicious-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .muted-text { color: var(--color-text-muted); }
+        .link-cell a {
+            color: var(--color-info);
+            text-decoration: none;
+        }
+        .link-cell a:hover { text-decoration: underline; }
+    </style>
+
+    {% if rows %}
+    <div class="table-wrapper-suspicious">
+        <table class="suspicious-table">
+            <thead>
+                <tr>
+                    <th data-sortable="true" data-type="number">#</th>
+                    <th data-sortable="true">ID</th>
+                    <th data-sortable="true">Site</th>
+                    <th data-sortable="true">PDC</th>
+                    <th data-sortable="true">MAC</th>
+                    <th data-sortable="true">Véhicule</th>
+                    <th data-sortable="true">Début</th>
+                    <th data-sortable="true">Fin</th>
+                    <th data-sortable="true" data-type="number">Énergie (kWh)</th>
+                    <th data-sortable="true" data-type="number">SOC début</th>
+                    <th data-sortable="true" data-type="number">SOC fin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td class="muted-text" data-sort-value="{{ row.rank }}">{{ row.rank }}</td>
+                    <td class="link-cell">
+                        {% if row.id %}
+                            <a href="{{ row.url }}" target="_blank">{{ row.id }}</a>
+                        {% else %}
+                            <span class="muted-text">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-sort-value="{{ row.site }}">{{ row.site }}</td>
+                    <td data-sort-value="{{ row.pdc }}">{{ row.pdc }}</td>
+                    <td>{{ row.mac }}</td>
+                    <td data-sort-value="{{ row.vehicle }}">{{ row.vehicle }}</td>
+                    <td data-sort-value="{{ row.start }}">{{ row.start }}</td>
+                    <td data-sort-value="{{ row.end }}">{{ row.end }}</td>
+                    <td data-sort-value="{{ row.energy }}">{{ row.energy }}</td>
+                    <td data-sort-value="{{ row.soc_start }}">{{ row.soc_start }}</td>
+                    <td data-sort-value="{{ row.soc_end }}">{{ row.soc_end }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        (() => {
+            const table = document.querySelector('.suspicious-table');
+            if (!table) return;
+
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            if (!headers.length || !tbody) return;
+
+            let currentSort = { index: null, dir: 'asc' };
+
+            const parseValue = (text, type) => {
+                const cleaned = text.replace('%', '').replace(/\s+/g, '');
+                if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                    return parseFloat(cleaned);
+                }
+                return cleaned.toLowerCase();
+            };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aCell = a.children[index];
+                    const bCell = b.children[index];
+                    const aVal = parseValue(aCell?.dataset.sortValue ?? aCell?.textContent.trim() ?? '', type);
+                    const bVal = parseValue(bCell?.dataset.sortValue ?? bCell?.textContent.trim() ?? '', type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        })();
+    </script>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>Aucune transaction suspecte sur ce périmètre.</div>
+    </div>
+    {% endif %}
+</div>

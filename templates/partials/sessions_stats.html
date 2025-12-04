@@ -1,0 +1,667 @@
+<!-- Fragment: Statistiques complètes -->
+{% if no_data %}
+<div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <div>Aucune donnée pour cette période</div>
+</div>
+{% else %}
+
+<style>
+.stats-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 1.5rem;
+}
+.stats-kpi-card {
+    background: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.stats-kpi-title {
+    font-size: 13px;
+    color: #cbd5e1;
+    margin: 0 0 6px 0;
+}
+.stats-kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+.stats-kpi-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.stats-kpi-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    margin-left: 6px;
+    background: #111827;
+    border: 1px solid #334155;
+    color: #93c5fd;
+}
+.stats-section-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 24px 0 12px 0;
+    color: #1e293b;
+}
+.stats-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+    margin: 1.5rem 0;
+}
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+.stats-table th {
+    background: #f8fafc;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid #e2e8f0;
+}
+.stats-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+.stats-table tr:hover {
+    background: #fafbfc;
+}
+.stats-selector {
+    margin: 1rem 0;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+}
+</style>
+
+<h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #1e293b;">📊 Statistiques générales</h3>
+
+<!-- Résumé global -->
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Total charges</div>
+        <div class="stats-kpi-value" style="color: #3b82f6;">{{ total_charges }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Charges OK</div>
+        <div class="stats-kpi-value" style="color: #10b981;">{{ total_ok }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Charges NOK</div>
+        <div class="stats-kpi-value" style="color: #ef4444;">{{ total_nok }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Énergie -->
+<h4 class="stats-section-title">
+    ⚡ Énergie
+    <span class="stats-kpi-tag">Total : tous statuts</span>
+    <span class="stats-kpi-tag">Moy./Max : OK only</span>
+</h4>
+<div class="stats-kpi-grid">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Total (kWh)</div>
+        <div class="stats-kpi-value">{{ e_total_all }}</div>
+        <div class="stats-kpi-sub">Tous statuts</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kWh)</div>
+        <div class="stats-kpi-value">{{ e_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kWh)</div>
+        <div class="stats-kpi-value">{{ e_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Puissance moyenne -->
+<h4 class="stats-section-title">
+    🔌 Puissance moyenne (kW)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kW)</div>
+        <div class="stats-kpi-value">{{ pm_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kW)</div>
+        <div class="stats-kpi-value">{{ pm_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Puissance maximale -->
+<h4 class="stats-section-title">
+    🚀 Puissance maximale (kW)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kW)</div>
+        <div class="stats-kpi-value">{{ px_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kW)</div>
+        <div class="stats-kpi-value">{{ px_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- SOC -->
+<h4 class="stats-section-title">
+    🔋 SOC (State of Charge)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC début moyen (%)</div>
+        <div class="stats-kpi-value">{{ soc_start_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC fin moyen (%)</div>
+        <div class="stats-kpi-value">{{ soc_end_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC moyen de recharge (%)</div>
+        <div class="stats-kpi-value">{{ soc_gain_mean }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Durées de charge -->
+<h4 class="stats-section-title">
+    ⏱️ Durées de charge
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: 1fr;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (minutes)</div>
+        <div class="stats-kpi-value">{{ dur_mean }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Charges par jour -->
+<h4 class="stats-section-title">
+    📅 Charges par jour
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Jours couverts</div>
+        <div class="stats-kpi-value">{{ nb_days }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne / jour (OK)</div>
+        <div class="stats-kpi-value">{{ mean_day }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Médiane / jour (OK)</div>
+        <div class="stats-kpi-value">{{ med_day }}</div>
+    </div>
+</div>
+
+{% if max_day_site != "—" %}
+<div class="stats-kpi-grid" style="grid-template-columns: 1fr; margin-top: 12px;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max / jour (OK)</div>
+        <div class="stats-kpi-value">{{ max_day_nb }}</div>
+        <div class="stats-kpi-sub">{{ max_day_date }} — site: {{ max_day_site }}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="stats-divider"></div>
+
+<!-- Durées de fonctionnement -->
+<h4 class="stats-section-title">⏱️ Durée de fonctionnement totale (heures)</h4>
+
+{% if durations_by_site %}
+<h5 style="font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #64748b;">Par Site</h5>
+
+<!-- Conteneur avec scroll -->
+<div style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+    <table class="stats-table" id="site-duration-table" style="margin: 0;">
+        <thead style="position: sticky; top: 0; z-index: 10;">
+            <tr>
+                <th style="cursor: pointer; user-select: none;" onclick="sortSiteTable('Site')">
+                    Site <span id="sort-Site">▼</span>
+                </th>
+                <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortSiteTable('Heures')">
+                    Heures <span id="sort-Heures">▼</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody id="site-duration-tbody">
+            {% for row in durations_by_site %}
+            <tr data-site="{{ row.Site }}" data-heures="{{ row.Heures }}">
+                <td>{{ row.Site }}</td>
+                <td style="text-align: right; font-weight: 600;">{{ row.Heures }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Gestion du tri pour le tableau "Par Site"
+let siteData = {{ durations_by_site | tojson }};
+let siteSortColumn = 'Heures';
+let siteSortAsc = false;
+
+function sortSiteTable(column) {
+    if (siteSortColumn === column) {
+        siteSortAsc = !siteSortAsc;
+    } else {
+        siteSortColumn = column;
+        siteSortAsc = true;
+    }
+
+    // Tri des données
+    siteData.sort((a, b) => {
+        let valA = a[column];
+        let valB = b[column];
+
+        if (column === 'Heures') {
+            valA = parseFloat(valA);
+            valB = parseFloat(valB);
+        }
+
+        if (valA < valB) return siteSortAsc ? -1 : 1;
+        if (valA > valB) return siteSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    // Mise à jour des indicateurs de tri
+    document.getElementById('sort-Site').textContent = siteSortColumn === 'Site' ? (siteSortAsc ? '▲' : '▼') : '▼';
+    document.getElementById('sort-Heures').textContent = siteSortColumn === 'Heures' ? (siteSortAsc ? '▲' : '▼') : '▼';
+
+    renderSiteTable();
+}
+
+function renderSiteTable() {
+    const tbody = document.getElementById('site-duration-tbody');
+
+    let html = '';
+    for (let i = 0; i < siteData.length; i++) {
+        const row = siteData[i];
+        html += `<tr>
+            <td>${row.Site}</td>
+            <td style="text-align: right; font-weight: 600;">${row.Heures}</td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+// Initialiser le tableau au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    sortSiteTable('Heures'); // Tri initial par heures décroissant
+});
+</script>
+
+{% else %}
+<p style="color: #94a3b8; font-style: italic;">Aucune donnée de durée disponible.</p>
+{% endif %}
+
+{% if site_options_dur %}
+<h5 style="font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #64748b;">Par PDC</h5>
+<div>
+    <label for="site-selector" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; display: block;">🏢 Sélectionner un site :</label>
+    <select id="site-selector" class="stats-selector" onchange="updatePDCDisplay()">
+        {% for site in site_options_dur %}
+        <option value="{{ site }}" {% if loop.index == 1 %}selected{% endif %}>{{ site }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<!-- Graphique à barres horizontales pour les PDC -->
+<div id="pdc-chart-container" style="margin-top: 1.5rem;">
+    <!-- Le graphique sera inséré ici par JavaScript -->
+</div>
+
+<div id="pdc-table-container" style="margin-top: 1rem;">
+    <!-- Le tableau sera inséré ici par JavaScript -->
+</div>
+
+<style>
+.pdc-bar-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    gap: 0.5rem;
+}
+.pdc-bar-label {
+    width: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    text-align: right;
+}
+.pdc-bar-wrapper {
+    flex: 1;
+    position: relative;
+    background: #f1f5f9;
+    border-radius: 4px;
+    height: 28px;
+}
+.pdc-bar {
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+}
+.pdc-bar-value {
+    font-size: 0.75rem;
+    color: white;
+    font-weight: 600;
+}
+.pdc-bar-value-outside {
+    margin-left: 8px;
+    font-size: 0.75rem;
+    color: #334155;
+    font-weight: 600;
+}
+</style>
+
+<script>
+(() => {
+    // Données des durées par site/PDC
+    const durationsBySite = {{ durations_by_site_dict | tojson }};
+
+    window.updatePDCDisplay = function() {
+        const selector = document.getElementById('site-selector');
+        const selectedSite = selector?.value;
+        const chartContainer = document.getElementById('pdc-chart-container');
+        const tableContainer = document.getElementById('pdc-table-container');
+
+        if (!selectedSite || !durationsBySite[selectedSite]) {
+            chartContainer.innerHTML = '<p style="color: #94a3b8; font-style: italic; margin-top: 1rem;">Aucune donnée pour ce site.</p>';
+            tableContainer.innerHTML = '';
+            return;
+        }
+
+        const data = durationsBySite[selectedSite];
+
+        // Trier les données par heures décroissantes pour le graphique
+        const sortedData = [...data].sort((a, b) => b.Heures - a.Heures);
+        const maxHeures = Math.max(...sortedData.map(row => row.Heures));
+
+        // Générer le graphique à barres horizontales
+        let chartHtml = '<div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">';
+        chartHtml += '<h6 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: #334155;">📊 Durée totale par PDC (heures)</h6>';
+
+        sortedData.forEach(row => {
+            const percentage = maxHeures > 0 ? (row.Heures / maxHeures * 100) : 0;
+            const barWidth = Math.max(percentage, 5); // Minimum 5% pour la visibilité
+            const showValueInside = percentage > 15; // Afficher la valeur à l'intérieur si assez de place
+
+            chartHtml += '<div class="pdc-bar-container">';
+            chartHtml += `<div class="pdc-bar-label">${row.PDC}</div>`;
+            chartHtml += '<div class="pdc-bar-wrapper">';
+            chartHtml += `<div class="pdc-bar" style="width: ${barWidth}%;">`;
+            if (showValueInside) {
+                chartHtml += `<span class="pdc-bar-value">${row.Heures}h</span>`;
+            }
+            chartHtml += '</div>';
+            chartHtml += '</div>';
+            if (!showValueInside) {
+                chartHtml += `<span class="pdc-bar-value-outside">${row.Heures}h</span>`;
+            }
+            chartHtml += '</div>';
+        });
+
+        chartHtml += '</div>';
+        chartContainer.innerHTML = chartHtml;
+
+        // Générer le tableau (trié par durée décroissante)
+        let tableHtml = '<table class="stats-table"><thead><tr><th>PDC</th><th style="text-align: right;">Heures</th></tr></thead><tbody>';
+
+        sortedData.forEach(row => {
+            tableHtml += `<tr><td>${row.PDC}</td><td style="text-align: right; font-weight: 600;">${row.Heures}</td></tr>`;
+        });
+
+        tableHtml += '</tbody></table>';
+        tableContainer.innerHTML = tableHtml;
+    };
+
+    // Initialiser l'affichage au chargement
+    window.updatePDCDisplay();
+})();
+</script>
+{% endif %}
+
+<div class="stats-divider"></div>
+
+<!-- Statistiques par type de véhicule -->
+<h4 class="stats-section-title">🚗 Taux de réussite/échec par type de véhicule</h4>
+
+{% if vehicle_stats %}
+<div style="margin-top: 1rem;">
+    <!-- Contrôles de pagination -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <div style="font-size: 0.85rem; color: #64748b;">
+            {% set total_vehicle = vehicle_stats|length %}
+            {% set first_range = [total_vehicle, 50]|min %}
+            <span id="vehicle-range-info">Affichage 1-{{ first_range }} sur {{ total_vehicle }}</span>
+        </div>
+    </div>
+
+    <!-- Tableau des statistiques -->
+    <div style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <table class="stats-table" id="vehicle-stats-table" style="margin: 0;">
+            <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortVehicleTable('Vehicle')">Véhicule <span id="sort-Vehicle">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('total')">Total <span id="sort-total">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('ok')">OK <span id="sort-ok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('nok')">NOK <span id="sort-nok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('percent_ok')">% Réussite <span id="sort-percent_ok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('percent_nok')">% Échec <span id="sort-percent_nok">▼</span></th>
+                </tr>
+            </thead>
+            <tbody id="vehicle-stats-tbody">
+                {% for row in vehicle_stats[:50] %}
+                <tr>
+                    <td style="font-weight: 600;">{{ row.Vehicle }}</td>
+                    <td style="text-align: right;">{{ row.total }}</td>
+                    <td style="text-align: right; color: #10b981;">{{ row.ok }}</td>
+                    <td style="text-align: right; color: #ef4444;">{{ row.nok }}</td>
+                    <td style="text-align: right; font-weight: 600;">{{ row.percent_ok }}%</td>
+                    <td style="text-align: right;">{{ row.percent_nok }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Boutons de pagination -->
+    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem;">
+        <button id="vehicle-prev-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="prevVehiclePage()">← Précédent</button>
+        {% set total_vehicle_pages = (vehicle_stats|length // 50) + (1 if vehicle_stats|length % 50 > 0 else 0) %}
+        <span id="vehicle-page-info" style="padding: 0.5rem; font-size: 0.85rem; color: #64748b;">Page 1 / {{ total_vehicle_pages if total_vehicle_pages else 1 }}</span>
+        <button id="vehicle-next-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="nextVehiclePage()">Suivant →</button>
+    </div>
+
+    <script>
+(() => {
+    // Gestion du tri et de la pagination pour le tableau "Taux de réussite/échec"
+    const vehicleData = {{ vehicle_stats | tojson }};
+    let vehicleSortColumn = '';
+    let vehicleSortAsc = false;
+    let vehicleCurrentPage = 1;
+    const vehicleRowsPerPage = 50;
+
+    function sortVehicleTable(column) {
+        if (vehicleSortColumn === column) {
+            vehicleSortAsc = !vehicleSortAsc;
+        } else {
+            vehicleSortColumn = column;
+            vehicleSortAsc = column === 'Vehicle';
+        }
+
+        vehicleData.sort((a, b) => {
+            let valA = a[column];
+            let valB = b[column];
+
+            if (column !== 'Vehicle') {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+            }
+
+            if (valA < valB) return vehicleSortAsc ? -1 : 1;
+            if (valA > valB) return vehicleSortAsc ? 1 : -1;
+            return 0;
+        });
+
+        updateVehicleSortIndicators();
+        vehicleCurrentPage = 1;
+        renderVehicleTable();
+    }
+
+    function updateVehicleSortIndicators() {
+        const indicators = ['Vehicle', 'total', 'ok', 'nok', 'percent_ok', 'percent_nok'];
+        indicators.forEach(col => {
+            const el = document.getElementById(`sort-${col}`);
+            if (!el) return;
+            if (vehicleSortColumn === col) {
+                el.textContent = vehicleSortAsc ? '▲' : '▼';
+            } else {
+                el.textContent = '▼';
+            }
+        });
+    }
+
+    function renderVehicleTable() {
+        const tbody = document.getElementById('vehicle-stats-tbody');
+        const startIdx = (vehicleCurrentPage - 1) * vehicleRowsPerPage;
+        const endIdx = vehicleRowsPerPage === vehicleData.length ? vehicleData.length : Math.min(startIdx + vehicleRowsPerPage, vehicleData.length);
+
+        let html = '';
+        for (let i = startIdx; i < endIdx; i++) {
+            const row = vehicleData[i];
+            html += `<tr>
+                <td style="font-weight: 600;">${row.Vehicle}</td>
+                <td style="text-align: right;">${row.total}</td>
+                <td style="text-align: right; color: #10b981;">${row.ok}</td>
+                <td style="text-align: right; color: #ef4444;">${row.nok}</td>
+                <td style="text-align: right; font-weight: 600;">${row.percent_ok}%</td>
+                <td style="text-align: right;">${row.percent_nok}%</td>
+            </tr>`;
+        }
+        tbody.innerHTML = html;
+
+        const totalPages = Math.ceil(vehicleData.length / vehicleRowsPerPage);
+        document.getElementById('vehicle-range-info').textContent = `Affichage ${startIdx + 1}-${endIdx} sur ${vehicleData.length}`;
+        document.getElementById('vehicle-page-info').textContent = `Page ${vehicleCurrentPage} / ${totalPages}`;
+
+        document.getElementById('vehicle-prev-btn').disabled = vehicleCurrentPage === 1;
+        document.getElementById('vehicle-next-btn').disabled = vehicleCurrentPage >= totalPages;
+    }
+
+    function prevVehiclePage() {
+        if (vehicleCurrentPage > 1) {
+            vehicleCurrentPage--;
+            renderVehicleTable();
+        }
+    }
+
+    function nextVehiclePage() {
+        const totalPages = Math.ceil(vehicleData.length / vehicleRowsPerPage);
+        if (vehicleCurrentPage < totalPages) {
+            vehicleCurrentPage++;
+            renderVehicleTable();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        sortVehicleTable('percent_ok');
+    });
+
+    // Exposer les fonctions pour les gestionnaires inline
+    window.sortVehicleTable = sortVehicleTable;
+    window.prevVehiclePage = prevVehiclePage;
+    window.nextVehiclePage = nextVehiclePage;
+})();
+</script>
+
+    <!-- Graphique à barres pour le taux de réussite -->
+    <div style="margin-top: 2rem; padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h6 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: #334155;">📊 Taux de réussite par type de véhicule (%)</h6>
+
+        {% for row in vehicle_stats %}
+        <div class="pdc-bar-container">
+            <div class="pdc-bar-label" style="width: 150px;">{{ row.Vehicle }}</div>
+            <div class="pdc-bar-wrapper">
+                <div class="pdc-bar" style="width: {{ row.percent_ok }}%; background: linear-gradient(90deg, #10b981, #059669);">
+                    {% if row.percent_ok > 15 %}
+                    <span class="pdc-bar-value">{{ row.percent_ok }}%</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if row.percent_ok <= 15 %}
+            <span class="pdc-bar-value-outside">{{ row.percent_ok }}%</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div style="padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; margin-top: 1rem;">
+    <p style="color: #92400e; font-weight: 600; margin: 0 0 0.5rem 0;">⚠️ Aucune donnée de véhicule disponible</p>
+    <p style="color: #78350f; font-size: 0.85rem; margin: 0;">
+        {% if vehicle_debug_info %}
+        Diagnostic :
+        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            <li>Total de sessions : {{ vehicle_debug_info.total_rows }}</li>
+            <li>Colonne Vehicle présente : {{ "✅ Oui" if vehicle_debug_info.has_column else "❌ Non" }}</li>
+            {% if vehicle_debug_info.has_column %}
+            <li>Valeurs non-NULL : {{ vehicle_debug_info.non_null_count }} / {{ vehicle_debug_info.total_rows }}</li>
+            <li>Valeurs "Unknown" : {{ vehicle_debug_info.unknown_count }}</li>
+            <li>Valeurs valides : {{ vehicle_debug_info.valid_count }}</li>
+            {% endif %}
+        </ul>
+        {% if vehicle_debug_info.has_column and vehicle_debug_info.valid_count == 0 %}
+        <br>
+        <strong>💡 Suggestion :</strong> Tous les véhicules sont marqués comme "Unknown".
+        Vérifiez que la table <code>kpi_charges_mac</code> contient bien des noms de véhicules
+        et que le JOIN avec <code>kpi_sessions</code> fonctionne correctement (voir le fichier <code>diagnose_vehicle.sql</code>).
+        {% elif not vehicle_debug_info.has_column %}
+        <br>
+        <strong>💡 Suggestion :</strong> Les véhicules sont fournis par la table <code>kpi_charges_mac</code>.
+        Vérifiez que cette table existe et possède la colonne <code>Vehicle</code>.
+        {% endif %}
+        {% else %}
+        Tous les véhicules sont marqués comme "Unknown".
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% endif %}

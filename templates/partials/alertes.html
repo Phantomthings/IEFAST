@@ -1,0 +1,26 @@
+<!-- Fragment: Alertes actives -->
+<div class="kpi-card {{ status }}">
+    <p class="kpi-value">{{ nb_alertes }}</p>
+    <p class="kpi-label">alertes détectées</p>
+</div>
+
+{% if top_sites %}
+<div style="margin-top: 1rem;">
+    <h4 style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem;">Top 5 Sites en Alerte</h4>
+    <div class="top-sites-list">
+        {% for item in top_sites %}
+        <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0;">
+            <span style="font-weight: 500;">{{ item.site }}</span>
+            <span style="color: #ef4444; font-weight: 600;">{{ item.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if nb_alertes == 0 %}
+<div class="empty-state" style="margin-top: 1rem;">
+    <div class="icon">✅</div>
+    <div class="message">Aucune alerte</div>
+</div>
+{% endif %}
