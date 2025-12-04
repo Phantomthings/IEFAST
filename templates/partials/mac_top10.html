@@ -1,0 +1,49 @@
+{% if error %}
+<div style="padding: 1rem; background: #fee2e2; border: 1px solid #fca5a5; border-radius: var(--radius); color: #dc2626;">
+    ⚠️ {{ error }}
+</div>
+{% elif no_data %}
+<div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <div>Aucune donnée disponible pour cette période</div>
+</div>
+{% else %}
+
+<div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;">
+        <thead style="background: linear-gradient(90deg, #fef3c7, #fde68a); border-bottom: 2px solid #fbbf24;">
+            <tr>
+                <th style="padding: 0.75rem; text-align: center; font-size: 0.85rem; font-weight: 600; width: 60px;">🏆</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Adresse MAC</th>
+                <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; font-weight: 600; width: 150px;">Nombre de Charges</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr style="border-bottom: 1px solid var(--color-border); {% if loop.index <= 3 %}background: linear-gradient(90deg, #fffbeb, transparent);{% endif %}">
+                <td style="padding: 0.75rem; text-align: center; font-size: 1.2rem;">
+                    {% if row.Rang == 1 %}🥇
+                    {% elif row.Rang == 2 %}🥈
+                    {% elif row.Rang == 3 %}🥉
+                    {% else %}{{ row.Rang }}
+                    {% endif %}
+                </td>
+                <td style="padding: 0.75rem; font-size: 0.9rem; font-family: monospace; font-weight: 500;">
+                    {{ row.Mac or '—' }}
+                </td>
+                <td style="padding: 0.75rem; text-align: right; font-size: 0.9rem; font-weight: 600; color: var(--color-primary);">
+                    {{ row.nombre_de_charges }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top: 1rem; padding: 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius);">
+    <div style="font-size: 0.85rem; color: #92400e;">
+        💡 <strong>Note :</strong> Ces adresses MAC ne sont pas encore identifiées dans la base de données des véhicules.
+    </div>
+</div>
+
+{% endif %}

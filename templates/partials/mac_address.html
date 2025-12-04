@@ -1,0 +1,45 @@
+<div class="section-header">🔍 Recherche par Adresse MAC</div>
+
+<div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;">
+    <form hx-get="/api/mac-address/search" hx-target="#mac-search-results" hx-trigger="submit" style="margin-bottom: 1rem;">
+        <input type="hidden" name="sites" value="{{ request.query_params.get('sites', '') }}">
+        <input type="hidden" name="date_debut" value="{{ request.query_params.get('date_debut', '') }}">
+        <input type="hidden" name="date_fin" value="{{ request.query_params.get('date_fin', '') }}">
+
+        <div style="display: flex; gap: 1rem; align-items: flex-end;">
+            <div style="flex: 1;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); display: block; margin-bottom: 0.5rem;">
+                    Adresse MAC ou préfixe
+                </label>
+                <input
+                    type="text"
+                    name="mac_query"
+                    placeholder="ex: 4E:5D ou 4e5d"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 0.9rem;"
+                    required
+                    minlength="2">
+            </div>
+            <button type="submit" class="btn active" style="padding: 0.5rem 1.5rem;">
+                🔍 Rechercher
+            </button>
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.5rem;">
+            💡 Saisissez une adresse complète ou un préfixe (ex: 4E:5D pour toutes les MAC commençant par 4E:5D)
+        </div>
+    </form>
+
+    <div id="mac-search-results"></div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section-header">📊 Top 10 des Adresses MAC Non Identifiées</div>
+
+<div
+    hx-get="/api/mac-address/top10?sites={{ request.query_params.get('sites', '') }}&date_debut={{ request.query_params.get('date_debut', '') }}&date_fin={{ request.query_params.get('date_fin', '') }}"
+    hx-trigger="load"
+    hx-target="this"
+    hx-swap="innerHTML">
+    <div class="loading"><span class="spinner"></span> Chargement du top 10...</div>
+</div>

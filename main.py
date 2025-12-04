@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 
 from db import engine, get_sites, get_date_range
-from routers import defauts, alertes, sessions, kpis, overview, filters
+from routers import defauts, alertes, sessions, kpis, overview, filters, mac_address
 
 # Lifespan pour initialiser/fermer la connexion DB
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.include_router(defauts.router, prefix="/api")
 app.include_router(alertes.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(kpis.router, prefix="/api")
+app.include_router(mac_address.router, prefix="/api")
 
 
 @app.get("/")

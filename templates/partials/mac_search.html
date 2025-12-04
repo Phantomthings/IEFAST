@@ -1,0 +1,142 @@
+{% if error %}
+<div style="padding: 1rem; background: #fee2e2; border: 1px solid #fca5a5; border-radius: var(--radius); color: #dc2626;">
+    ⚠️ {{ error }}
+</div>
+{% elif prompt %}
+<div style="padding: 1rem; background: #dbeafe; border: 1px solid #93c5fd; border-radius: var(--radius); color: #1e40af;">
+    💡 {{ prompt }}
+</div>
+{% elif no_data %}
+<div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <div>Aucune donnée disponible pour cette période</div>
+</div>
+{% elif no_results %}
+<div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <div>Aucune charge trouvée pour cette adresse MAC : <strong>{{ mac_query }}</strong></div>
+</div>
+{% else %}
+
+<div style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #7dd3fc; border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="font-size: 0.85rem; color: #0369a1; font-weight: 600;">Recherche MAC : {{ mac_query }}</div>
+            <div style="font-size: 0.8rem; color: #0284c7; margin-top: 0.25rem;">{{ total }} charges trouvées</div>
+        </div>
+        <div style="display: flex; gap: 1.5rem; align-items: center;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">{{ ok_count }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-muted);">OK</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">{{ nok_count }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-muted);">NOK</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #0284c7;">{{ success_rate }}%</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-muted);">Réussite</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if ok_rows %}
+<div style="margin-bottom: 2rem;">
+    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #10b981;">
+        ✅ Charges Réussies ({{ ok_count }})
+    </h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: var(--radius); overflow: hidden;">
+            <thead style="background: #f0fdf4; border-bottom: 2px solid #bbf7d0;">
+                <tr>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">#</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Site</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">PDC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Début</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Fin</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">SOC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">MAC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Véhicule</th>
+                    <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; font-weight: 600;">Energie (kWh)</th>
+                    <th style="padding: 0.75rem; text-align: center; font-size: 0.85rem; font-weight: 600;">Lien</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ok_rows[:50] %}
+                <tr style="border-bottom: 1px solid var(--color-border);">
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ loop.index }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.Site or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.PDC or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row['Datetime start'].strftime('%Y-%m-%d %H:%M') if row['Datetime start'] else '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row['Datetime end'].strftime('%Y-%m-%d %H:%M') if row['Datetime end'] else '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.evolution_soc or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; font-family: monospace;">{{ row.mac_formatted or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.Vehicle or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; text-align: right;">{{ "%.3f"|format(row['Energy (Kwh)']) if row['Energy (Kwh)'] else '—' }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        <a href="{{ row.elto_link }}" target="_blank" style="color: #0284c7; text-decoration: none;">🔗</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if ok_rows|length > 50 %}
+    <div style="padding: 0.5rem; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; background: var(--color-bg); border-radius: 0 0 var(--radius) var(--radius);">
+        Affichage des 50 premières charges ({{ ok_rows|length }} au total)
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if nok_rows %}
+<div>
+    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #ef4444;">
+        ❌ Charges Échouées ({{ nok_count }})
+    </h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: var(--radius); overflow: hidden;">
+            <thead style="background: #fef2f2; border-bottom: 2px solid #fca5a5;">
+                <tr>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">#</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Site</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">PDC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Début</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Fin</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">SOC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">MAC</th>
+                    <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; font-weight: 600;">Véhicule</th>
+                    <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; font-weight: 600;">Energie (kWh)</th>
+                    <th style="padding: 0.75rem; text-align: center; font-size: 0.85rem; font-weight: 600;">Lien</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in nok_rows[:50] %}
+                <tr style="border-bottom: 1px solid var(--color-border);">
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ loop.index }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.Site or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.PDC or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row['Datetime start'].strftime('%Y-%m-%d %H:%M') if row['Datetime start'] else '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row['Datetime end'].strftime('%Y-%m-%d %H:%M') if row['Datetime end'] else '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.evolution_soc or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; font-family: monospace;">{{ row.mac_formatted or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;">{{ row.Vehicle or '—' }}</td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem; text-align: right;">{{ "%.3f"|format(row['Energy (Kwh)']) if row['Energy (Kwh)'] else '—' }}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        <a href="{{ row.elto_link }}" target="_blank" style="color: #0284c7; text-decoration: none;">🔗</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if nok_rows|length > 50 %}
+    <div style="padding: 0.5rem; text-align: center; color: var(--color-text-muted); font-size: 0.85rem; background: var(--color-bg); border-radius: 0 0 var(--radius) var(--radius);">
+        Affichage des 50 premières charges ({{ nok_rows|length }} au total)
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endif %}
