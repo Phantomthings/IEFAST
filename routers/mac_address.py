@@ -32,21 +32,22 @@ def _format_soc_evolution(s0, s1):
     return ""
 
 
-def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None):
+def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None, table_alias: str = ""):
     conditions = ["1=1"]
     params = {}
+    prefix = f"{table_alias}." if table_alias else ""
 
     if date_debut:
-        conditions.append("`Datetime start` >= :date_debut")
+        conditions.append(f"{prefix}`Datetime start` >= :date_debut")
         params["date_debut"] = str(date_debut)
     if date_fin:
-        conditions.append("`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
+        conditions.append(f"{prefix}`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
         params["date_fin"] = str(date_fin)
     if sites:
         site_list = [s.strip() for s in sites.split(",") if s.strip()]
         if site_list:
             placeholders = ",".join([f":site_{i}" for i in range(len(site_list))])
-            conditions.append(f"Site IN ({placeholders})")
+            conditions.append(f"{prefix}Site IN ({placeholders})")
             for i, s in enumerate(site_list):
                 params[f"site_{i}"] = s
 
@@ -84,21 +85,21 @@ async def search_mac(
     mac_norm = mac_query.strip().lower().replace("0x", "")
     mac_norm = re.sub(r"[^0-9a-f]", "", mac_norm)
 
-    where_clause, params = _build_conditions(sites, date_debut, date_fin)
+    where_clause, params = _build_conditions(sites, date_debut, date_fin, "c")
 
     sql = f"""
         SELECT
             c.ID,
-            c.Site,
-            c.PDC,
+            COALESCE(s.Site, c.Site) as Site,
+            s.PDC,
             c.`Datetime start`,
-            c.`Datetime end`,
-            c.`Energy (Kwh)`,
+            s.`Datetime end`,
+            s.`Energy (Kwh)`,
             c.`MAC Address` as mac,
             c.Vehicle,
-            c.`SOC Start`,
-            c.`SOC End`,
-            s.`State of charge(0:good, 1:error)` as state
+            COALESCE(s.`SOC Start`, c.`SOC Start`) as `SOC Start`,
+            COALESCE(s.`SOC End`, c.`SOC End`) as `SOC End`,
+            s.is_ok
         FROM kpi_charges_mac c
         LEFT JOIN kpi_sessions s ON c.ID = s.ID
         WHERE {where_clause}
@@ -135,12 +136,14 @@ async def search_mac(
         )
 
     for col in ["Datetime start", "Datetime end"]:
-        df[col] = pd.to_datetime(df[col], errors="coerce")
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
 
     for col in ["Energy (Kwh)", "SOC Start", "SOC End"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+    df["is_ok"] = df["is_ok"].fillna(0).astype(bool)
     df["mac_formatted"] = df["mac"].apply(_fmt_mac)
     df["evolution_soc"] = df.apply(
         lambda r: _format_soc_evolution(r.get("SOC Start"), r.get("SOC End")), axis=1
@@ -155,15 +158,16 @@ async def search_mac(
     df_ok = df[df["is_ok"]].copy()
     df_nok = df[~df["is_ok"]].copy()
 
-    if "Datetime start" in df_ok.columns:
+    if "Datetime start" in df_ok.columns and not df_ok.empty:
         df_ok = df_ok.sort_values("Datetime start", ascending=False)
-    if "Datetime start" in df_nok.columns:
+    if "Datetime start" in df_nok.columns and not df_nok.empty:
         df_nok = df_nok.sort_values("Datetime start", ascending=False)
 
     display_cols = [
         "Site", "PDC", "Datetime start", "Datetime end",
         "evolution_soc", "mac_formatted", "Vehicle", "Energy (Kwh)", "elto_link"
     ]
+    display_cols = [c for c in display_cols if c in df.columns]
 
     ok_rows = df_ok[display_cols].to_dict("records") if not df_ok.empty else []
     nok_rows = df_nok[display_cols].to_dict("records") if not df_nok.empty else []
@@ -199,21 +203,14 @@ async def get_top10_unidentified(
             }
         )
 
-    where_clause, params = _build_conditions(sites, date_debut, date_fin)
-
-    sql = f"""
-        SELECT
-            m.Mac,
-            COUNT(*) as nombre_de_charges
-        FROM kpi_mac_id m
-        LEFT JOIN kpi_sessions s ON m.ID = s.ID
-        WHERE {where_clause}
-        GROUP BY m.Mac
+    sql = """
+        SELECT Mac, nombre_de_charges, taux_reussite
+        FROM kpi_mac_id
         ORDER BY nombre_de_charges DESC
         LIMIT 10
     """
 
-    df = query_df(sql, params)
+    df = query_df(sql)
 
     if df.empty:
         return templates.TemplateResponse(
